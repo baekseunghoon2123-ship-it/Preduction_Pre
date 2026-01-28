@@ -3,11 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <title>MV Community</title>
+  <link rel="stylesheet" href="./css/style.css" />
 </head>
 <body>
-  <h1>MV Community</h1>
-  <p>Cloudflare Pages root index.html OK</p>
 
-  <!-- 나중에 이 부분을 실제 커뮤니티 UI로 교체 -->
+<header>
+  <h1>MV COMMUNITY</h1>
+  <button id="loginBtn">Google Login</button>
+  <span id="userNick"></span>
+</header>
+
+<nav>
+  <a href="write.html">글쓰기</a>
+  <a href="case.html">예산별 케이스</a>
+</nav>
+
+<main>
+  <h2>익명 커뮤니티</h2>
+  <div id="postList"></div>
+</main>
+
+<script type="module" src="./js/community.js"></script>
 </body>
 </html>

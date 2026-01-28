@@ -1,73 +1,63 @@
-// Firebase SDK CDN imports (from user's snippet)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
-import { getAuth } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js";
-import { getFirestore } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+import { db, auth } from "./firebase.js";
+import { initAuth } from "./auth.js";
 
-// Firebase Configuration (from user's snippet, with placeholders for security)
-// IMPORTANT: For production, you should use environment variables or a server-side
-// process to manage these keys securely.
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY", // Replace with your Firebase API Key
-  authDomain: "YOUR_AUTH_DOMAIN", // Replace with your Firebase Auth Domain
-  projectId: "YOUR_PROJECT_ID", // Replace with your Firebase Project ID
-  storageBucket: "YOUR_STORAGE_BUCKET", // Add your Storage Bucket if needed
-  messagingSenderId: "YOUR_MESSAGING_SENDER_ID", // Add your Messaging Sender ID if needed
-  appId: "YOUR_APP_ID", // Add your App ID if needed
-};
 
-// Initialize Firebase
-export const app = initializeApp(firebaseConfig);
-export const auth = getAuth(app);
-export const db = getFirestore(app);
+initAuth();
 
-// --- Basic Google Login Example (for index.html) ---
-const loginBtn = document.getElementById('loginBtn');
-const userNickSpan = document.getElementById('userNick');
+// 글 작성 (Post creation)
+const submit = document.getElementById("submit");
+if (submit) {
+  submit.onclick = async () => {
+    if (!auth.currentUser) return alert("로그인 필요");
 
-// Placeholder for Google Login functionality
-// This would typically involve Firebase Google Auth provider
-if (loginBtn) {
-  loginBtn.addEventListener('click', () => {
-    alert('Google Login functionality to be implemented using Firebase Auth!');
-    // Example: signInWithPopup(auth, new GoogleAuthProvider());
-  });
-}
+    const title = document.getElementById("title").value;
+    const content = document.getElementById("content").value;
 
-// Placeholder for displaying user nickname
-if (userNickSpan) {
-  // Example: auth.onAuthStateChanged((user) => { if (user) userNickSpan.textContent = user.displayName; });
-}
-
-// --- Basic Community Post List Example (for index.html) ---
-const postListDiv = document.getElementById('postList');
-// This would typically involve fetching data from Firestore
-if (postListDiv) {
-  postListDiv.innerHTML = "" +
-    "<div><h3>익명 게시물 제목 1</h3><p>이것은 익명 커뮤니티의 첫 번째 게시물입니다.</p></div>" +
-    "<div><h3>익명 게시물 제목 2</h3><p>두 번째 게시물 내용입니다.</p></div>";
-}
-
-// --- Basic Write Post Example (for write.html) ---
-const submitBtn = document.getElementById('submit');
-const titleInput = document.getElementById('title');
-const contentTextarea = document.getElementById('content');
-
-// Placeholder for submitting data to Firestore
-if (submitBtn && titleInput && contentTextarea) {
-  submitBtn.addEventListener('click', () => {
-    const title = titleInput.value;
-    const content = contentTextarea.value;
-    if (title && content) {
-      alert(`게시물 등록 요청:\n제목: ${title}\n내용: ${content}\n(Firebase Firestore에 저장될 예정)`);
-      // Example: addDoc(collection(db, "posts"), { title, content, author: "anonymous" });
-      titleInput.value = '';
-      contentTextarea.value = '';
-    } else {
-      alert('제목과 내용을 모두 입력해주세요.');
+    if (!title || !content) {
+      alert("제목과 내용을 모두 입력해주세요.");
+      return;
     }
-  });
+
+    try {
+      await addDoc(collection(db, "posts"), {
+        title,
+        content,
+        createdAt: serverTimestamp(),
+        authorUid: auth.currentUser.uid, // Store author's UID
+        authorNickname: auth.currentUser.displayName || (await getDocs(collection(db, "users"))).docs.find(doc => doc.id === auth.currentUser.uid)?.data()?.nickname || "Anonymous", // Try to get nickname
+      });
+
+      alert("작성 완료");
+      location.href = "/"; // Redirect to homepage after post
+    } catch (error) {
+      console.error("Error adding document: ", error);
+      alert("게시물 작성 중 오류가 발생했습니다.");
+    }
+  };
 }
 
-// --- Basic Budget Cases Example (for case.html) ---
-// No specific JS interaction required for the provided case.html snippet.
-// Data could be dynamically loaded from Firestore here as well.
+// 글 목록 (Post listing)
+const list = document.getElementById("postList");
+if (list) {
+  const fetchPosts = async () => {
+    try {
+      const snap = await getDocs(collection(db, "posts"));
+      list.innerHTML = ""; // Clear existing posts
+      snap.forEach(doc => {
+        const d = doc.data();
+        const el = document.createElement("div");
+        el.innerHTML = `
+          <h4>${d.title}</h4>
+          <p>${d.content}</p>
+          <small>Posted by: ${d.authorNickname || "Anonymous"}</small>
+          ${d.createdAt ? `<small> at ${new Date(d.createdAt.toDate()).toLocaleString()}</small>` : ''}
+        `;
+        list.appendChild(el);
+      });
+    } catch (error) {
+      console.error("Error fetching documents: ", error);
+      list.innerHTML = `<p>게시물을 불러오는 중 오류가 발생했습니다.</p>`;
+    }
+  };
+  fetchPosts();
+}
